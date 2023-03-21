@@ -1,0 +1,24 @@
+- name: "Adding user '{{ pg_dbuser }}' to '{{ pg_dbname }} from '{{ pg_client_source }}' in pg_hba.conf"
+  become: yes
+  become_user: postgres
+  community.postgresql.postgresql_pg_hba:
+    dest: "{{ pg_bind_dir }}/{{ pg_version }}/{{ pg_instance }}/pg_hba.conf"
+    contype: hostssl
+    users: "{{ pg_dbuser }}"
+    source: "{{ pg_client_source }}"
+    databases: "{{ pg_dbname }}"
+    method: "{{ pg_password_encryption }}"
+    create: no
+    state: present
+
+- name: "Adding user access to '{{ pg_dbname }}'"
+  become_user: postgres
+  community.general.postgresql_query:
+    db: "{{ pg_dbname }}"
+    query: "GRANT ALL PRIVILEGES ON DATABASE {{ pg_dbname }} TO {{ pg_dbuser }};"
+
+- name: "Starting PostgreSQL instance(s)"
+  become: yes
+  ansible.builtin.systemd:
+    name: "postgresql-{{ pg_version }}-{{ pg_instance }}"
+    state: reloaded

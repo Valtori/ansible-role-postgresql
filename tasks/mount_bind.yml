@@ -1,0 +1,13 @@
+- name: Check for mount_to directory
+  ansible.builtin.file:
+    path: "{{ mount_to }}"
+    state: directory
+
+- name: Bind mount file system
+  ansible.posix.mount:
+    src: "{{ mount_from }}"
+    path: "{{ mount_to }}"
+    opts: bind
+    state: mounted
+    fstype: none
+

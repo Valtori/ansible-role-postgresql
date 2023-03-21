@@ -1,0 +1,112 @@
+- name: "Installing python3-cryptography"
+  become: yes
+  ansible.builtin.dnf:
+    name: python3-cryptography
+    sslverify: "{{ dnf_sslverify }}"
+    validate_certs: "{{ dnf_validate_certs }}"
+    disable_gpg_check: "{{ dnf_disable_gpg_check }}"
+    state: present
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ no_proxy }}"
+  when: "pg_ssl == 'on'"
+
+- name: "Installing {{ pg_lang }}-langpack"
+  become: yes
+  ansible.builtin.dnf:
+    name: "glibc-langpack-{{ pg_lang }}"
+    sslverify: "{{ dnf_sslverify }}"
+    validate_certs: "{{ dnf_validate_certs }}"
+    disable_gpg_check: "{{ dnf_disable_gpg_check }}"
+    state: present
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ no_proxy }}"
+  when: pg_lang is defined
+
+- name: "Checking if PostgreSQL is initialized"
+  become: yes
+  ansible.builtin.stat:
+    path: "{{ pg_bind_dir }}/{{ pg_version }}/{{ pg_instance }}/pg_hba.conf"
+  register: postgres_data
+
+- name: "Initializing PostgreSQL"
+  become: yes
+  become_user: "{{ pg_user }}"
+  ansible.builtin.command: "/usr/pgsql-{{ pg_version }}/bin/initdb -D {{ pg_bind_dir }}/{{ pg_version }}/{{ pg_instance }} -E {{ pg_encoding }} --lc-collate={{ pg_lc_collate }} --lc-ctype={{ pg_lc_ctype }} -k"
+  when: not postgres_data.stat.exists
+
+- name: "Creating private key(s)"
+  community.crypto.openssl_privatekey:
+    path: "{{ pg_ssl_key_file }}"
+    size: "{{ pg_ssl_key_bit }}"
+    type: "{{ pg_ssl_key_type }}"
+    mode: "0600"
+    owner: "{{ pg_user }}"
+    group: "{{ pg_group }}"
+  when: "pg_ssl == 'on'"
+
+- name: "Creating self-signed certificate(s)"
+  community.crypto.x509_certificate:
+    path: "{{ pg_ssl_cert_file }}"
+    privatekey_path: "{{ pg_ssl_key_file }}"
+    provider: selfsigned
+    selfsigned_not_after: "{{ pg_ssl_selfsigned_not_after }}"
+    mode: "0644"
+    owner: "{{ pg_user }}"
+    group: "{{ pg_group }}"
+  when: "pg_ssl == 'on'"
+
+- name: "Creating conf.d to postgresql"
+  become: yes
+  ansible.builtin.file:
+    path: "{{ pg_bind_dir }}/{{ pg_version }}/{{ pg_instance }}/conf.d"
+    state: directory
+    owner: "{{ pg_user }}"
+    group: "{{ pg_group }}"
+    mode: "0700"
+
+- name: "Add include_dir to conf.d to postgresql.conf"
+  become: yes
+  ansible.builtin.lineinfile:
+    path: "{{ pg_bind_dir }}/{{ pg_version }}/{{ pg_instance }}/postgresql.conf"
+    line: include_dir = 'conf.d'
+    create: yes
+
+- name: "Add changes.conf"
+  become: yes
+  ansible.builtin.file:
+    path: "{{ pg_bind_dir }}/{{ pg_version }}/{{ pg_instance }}/conf.d/changes.conf"
+    owner: "{{ pg_user }}"
+    group: "{{ pg_group }}"
+    mode: "0600"
+    state: touch
+
+- name: "Update PostgreSQL config"
+  become: yes
+  become_user: "{{ pg_user }}"
+  ansible.builtin.template:
+    src: changes.conf.j2
+    dest: "{{ pg_bind_dir }}/{{ pg_version }}/{{ pg_instance }}/conf.d/changes.conf"
+
+- name: "Add systemd service file"
+  become: yes
+  ansible.builtin.file:
+    path: "{{ pg_systemd_service_dir }}/postgresql-{{ pg_version }}-{{ pg_instance }}.service"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+    state: touch
+
+- name: "Update systemd script"
+  become: yes
+  ansible.builtin.template:
+    src: systemd-service.j2
+    dest: "{{ pg_systemd_service_dir }}/postgresql-{{ pg_version }}-{{ pg_instance }}.service"
+
+- name: "Run systemd daemon-reload"
+  become: yes
+  ansible.builtin.systemd:
+    daemon_reload: yes

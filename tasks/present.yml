@@ -1,0 +1,118 @@
+- name: "Checking if server packages are available already"
+  ansible.builtin.shell:
+    "dnf list postgresql{{ pg_version | string }}-server | grep postgresql{{ pg_version | string }}-server | awk '{print $1}' | awk '{split($0,a,\".\"); print a[1]}'"
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ no_proxy }}"
+  register: sw_packages
+
+- name: "Installing repository RPM key for EL from postgresql.org"
+  become: yes
+  ansible.builtin.rpm_key:
+    key: "https://yum.postgresql.org/RPM-GPG-KEY-PGDG-{{ pg_version }}"
+    state: present
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ no_proxy }}"
+  when: "'postgresql' + pg_version|string + '-server' not in sw_packages.stdout_lines and ansible_distribution == 'RedHat'"
+
+- name: "Installing repository RPM key for Fedora from postgresql.org"
+  become: yes
+  ansible.builtin.rpm_key:
+    key: "https://yum.postgresql.org/RPM-GPG-KEY-PGDG"
+    state: present
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ no_proxy }}"
+  when: "'postgresql' + pg_version|string + '-server' not in sw_packages.stdout_lines and ansible_distribution == 'Fedora'"
+
+- name: "Installing PostgreSQL repository for Fedora from postgresql.org"
+  become: yes
+  ansible.builtin.dnf:
+    name: "https://download.postgresql.org/pub/repos/yum/reporpms/F-{{ ansible_distribution_major_version }}-x86_64/pgdg-fedora-repo-latest.noarch.rpm"
+    sslverify: "{{ dnf_sslverify }}"
+    validate_certs: "{{ dnf_validate_certs }}"
+    disable_gpg_check: "{{ dnf_disable_gpg_check }}"
+    state: present
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ no_proxy }}"
+  when: "'postgresql' + pg_version|string + '-server' not in sw_packages.stdout_lines and ansible_distribution == 'Fedora'"
+
+- name: "Installing PostgreSQL repository for EL from postgresql.org"
+  become: yes
+  ansible.builtin.dnf:
+    name: "https://download.postgresql.org/pub/repos/yum/reporpms/EL-{{ ansible_distribution_major_version }}-x86_64/pgdg-redhat-repo-latest.noarch.rpm"
+    sslverify: "{{ dnf_sslverify }}"
+    validate_certs: "{{ dnf_validate_certs }}"
+    disable_gpg_check: "{{ dnf_disable_gpg_check }}"
+    state: present
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ no_proxy }}"
+  when: "'postgresql' + pg_version|string + '-server' not in sw_packages.stdout_lines and ansible_distribution == 'RedHat'"
+
+- name: "Installing PostgreSQL {{ pg_version }}.x package"
+  become: yes
+  ansible.builtin.dnf:
+    name: "postgresql{{ pg_version }}-server,postgresql{{ pg_version }}-contrib"
+    sslverify: "{{ dnf_sslverify }}"
+    validate_certs: "{{ dnf_validate_certs }}"
+    disable_gpg_check: "{{ dnf_disable_gpg_check }}"
+    state: present
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ no_proxy }}"
+
+- name: "Installing python3-psycopg2 to make sure it is there"
+  become: yes
+  ansible.builtin.dnf:
+    name: "python3-psycopg2"
+    sslverify: "{{ dnf_sslverify }}"
+    validate_certs: "{{ dnf_validate_certs }}"
+    disable_gpg_check: "{{ dnf_disable_gpg_check }}"
+    state: present
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ no_proxy }}"
+
+- name: "Setting '{{ pg_real_dir }}' ownership"
+  become: yes
+  ansible.builtin.file:
+    path: "{{ pg_real_dir }}"
+    state: directory
+    recurse: yes
+    owner: "{{ pg_user }}"
+    group: "{{ pg_group }}"
+    mode: u+rwX,g+rwX,o=
+  when: pg_real_dir is defined
+
+- name: "Copying postgresql homedir to '{{ pg_bind_dir }}'"
+  become: yes
+  ansible.builtin.copy:
+    src: "{{ pg_default_dir }}"
+    dest: "{{ pg_real_dir }}/.."
+    remote_src: yes
+    owner: "{{ pg_user }}"
+    group: "{{ pg_group }}"
+    mode: u+rwX,g+rwX,o=
+  when: pg_real_dir is defined
+
+- include_tasks: "mount_bind.yml"
+  vars:
+    mount_to: "{{ pg_bind_dir }}"
+    mount_from: "{{ pg_real_dir }}"
+  when: pg_bind_dir != pg_real_dir and pg_real_dir is defined
+
+- name: "Mask default systemd script"
+  become: yes
+  ansible.builtin.systemd:
+    name: "postgresql-{{ pg_version }}"
+    masked: yes

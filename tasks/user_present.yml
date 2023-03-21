@@ -1,0 +1,21 @@
+- name: "Creating user(s) with scram-sha-256 password"
+  become: yes
+  become_user: postgres
+  community.general.postgresql_user:
+    name: "{{ pg_dbuser }}"
+    db: "postgres"
+    password: "{{ pg_dbpassword }}"
+    state: present
+  environment:
+    PGOPTIONS: "-c password_encryption=scram-sha-256"
+  when: pg_password_encryption == 'scram-sha-256'
+
+- name: "Creating user(s)"
+  become: yes
+  become_user: postgres
+  community.general.postgresql_user:
+    name: "{{ pg_dbuser }}"
+    db: "postgres"
+    password: "{{ pg_dbpassword }}"
+    state: present
+  when: pg_password_encryption != 'scram-sha-256'

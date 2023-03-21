@@ -1,0 +1,4 @@
+- name: "Unmounting {{ pg_mount_to }}"
+  ansible.posix.mount:
+    path: "{{ pg_mount_to }}"
+    state: absent

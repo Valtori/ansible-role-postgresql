@@ -1,0 +1,47 @@
+- include_tasks: "tasks/instance_absent.yml"
+
+- name: "Removing directory {{ pg_real_dir }} recursively"
+  become: yes
+  ansible.builtin.file:
+    path: "{{ pg_real_dir }}"
+    state: absent
+  when: pg_real_dir is defined
+
+- name: "Removing directory {{ pg_default_dir }} recursively"
+  become: yes
+  ansible.builtin.file:
+    path: "{{ pg_default_dir }}"
+    state: absent
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ no_proxy }}"
+  when: pg_default_dir is defined and pg_real_dir is undefined
+
+- name: "Checking if needed to unmount '{{ pg_bind_dir }}'"
+  ansible.builtin.set_fact:
+    mount_to: "{{ pg_bind_dir }}"
+  when: pg_bind_dir is defined
+
+- name: "Unmounting {{ mount_to }}"
+  ansible.posix.mount:
+    path: "{{ mount_to }}"
+    state: absent
+  when: mount_to is defined
+
+- name: "Checking all the processes for {{ pg_user }} user"
+  ansible.builtin.shell: "ps -u {{ pg_user }} | awk '{print $1}' | tail -n +2"
+  register: running_processes
+
+- name: "Killing all the processes for postgres user"
+  ansible.builtin.command: kill {{ item }}
+  loop: "{{ running_processes.stdout_lines }}"
+
+- include_tasks: "tasks/all_packages_absent.yml"
+
+- name: "Removing user {{ pg_user }}"
+  become: yes
+  ansible.builtin.user:
+    name: "{{ pg_user }}"
+    state: absent
+    remove: yes

@@ -1,0 +1,8 @@
+- name: "Deleting user(s)"
+  become: yes
+  become_user: postgres
+  community.general.postgresql_user:
+    name: "{{ pg_dbuser }}"
+    port: "{{ pg_port }}"
+    db: "postgres"
+    state: absent

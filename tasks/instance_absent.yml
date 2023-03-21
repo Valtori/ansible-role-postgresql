@@ -1,0 +1,6 @@
+- include_tasks: "tasks/instance_stopped.yml"
+
+- name: "Removing directory {{ pg_bind_dir }}/{{ pg_version }}/<pg_instance> recursively"
+  ansible.builtin.file:
+    path: "{{ pg_bind_dir }}/{{ pg_version }}/{{ pg_instance }}"
+    state: absent

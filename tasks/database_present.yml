@@ -1,0 +1,13 @@
+- name: "Setting pg_dbowner"
+  ansible.builtin.set_fact:
+    pg_dbowner: "{{ pg_user }}"
+  when: pg_dbowner is undefined
+
+- name: "Creating database(s)"
+  become: yes
+  become_user: postgres
+  community.general.postgresql_db:
+    name: "{{ pg_dbname }}"
+    owner: "{{ pg_dbowner }}"
+    template: template0
+    state: present

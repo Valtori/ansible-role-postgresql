@@ -1,0 +1,15 @@
+- name: "Stopping service postgresql-{{ pg_version }} and disabling on boot"
+  ansible.builtin.service:
+    name: "postgresql-{{ pg_version }}-{{ pg_instance }}"
+    state: stopped
+    enabled: no
+
+- name: "Uninstalling all PostgreSQL and related packages"
+  ansible.builtin.dnf:
+    name: "postgresql*,libpg5,python3-psycopg2"
+    state: absent
+    autoremove: yes
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ no_proxy }}"

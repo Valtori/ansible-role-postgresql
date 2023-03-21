@@ -1,0 +1,78 @@
+# POSTGRESQL
+
+# PROXY
+
+http_proxy: ""
+https_proxy: ""
+no_proxy: ""
+
+# PACKAGES
+
+dnf_sslverify: yes
+dnf_validate_certs: yes
+dnf_disable_gpg_check: no
+
+# GENERAL
+#
+# default postgresql install is /var/lib/pgsql/15/data which is equilevant of {{ pg_bind_dir }}/{{ pg_version }}/{{ pg_instance }}
+#
+# This configuration allows more than 1 instance (cluster in postgresql terms) initialized and run
+# Remember that each instance needs it's own unique network address (listen_address and port combination) to bind
+
+# configuration "auto" for automatic memory calculation, other for PostgreSQL defaults
+pg_configuration: "auto"
+
+pg_version: "15"
+pg_instance: "data"
+
+pg_user: "postgres"
+pg_group: "postgres"
+
+pg_default_dir: "/var/lib/pgsql"
+pg_bind_dir: "{{ pg_default_dir }}"
+
+pg_lang: "fi"
+pg_locale: "FI"
+pg_encoding: "UTF-8"
+
+pg_lc_ctype: "{{ pg_lang | lower }}_{{ pg_locale | upper }}.{{ pg_encoding | upper }}"
+pg_lc_collate: "{{ pg_lang | lower }}_{{ pg_locale | upper }}.{{ pg_encoding | upper }}"
+
+pg_systemd_service_dir: "/usr/lib/systemd/system"
+
+pg_shared_preload_libraries: []
+
+pg_max_worker_processes: 8
+
+# CONNECTIONS
+
+pg_listen_addresses: "*"
+pg_port: 5432
+
+pg_max_connections: 100
+
+# AUTHENTICATION
+
+pg_client_source: "all"
+pg_password_encryption: scram-sha-256
+
+# SECURITY
+
+pg_ssl: "on"
+pg_ssl_cert_file: "{{ pg_bind_dir }}/{{ pg_version }}/{{ pg_instance }}/postgresql.pem"
+pg_ssl_key_file: "{{ pg_bind_dir }}/{{ pg_version }}/{{ pg_instance }}/postgresql.key"
+pg_ssl_min_protocol_version: "TLSv1.2"
+
+pg_ssl_key_bit: "3072"
+pg_ssl_key_type: "Ed25519"
+pg_ssl_selfsigned_not_after: "+3650d"
+
+# RESOURCE USAGE
+
+pg_shared_buffers: "128MB"
+pg_work_mem: "4MB"
+pg_maintenance_work_mem: "64MB"
+
+# QUERY TUNING
+
+pg_effective_cache_size: "4GB"

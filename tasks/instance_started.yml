@@ -1,0 +1,5 @@
+- name: "Starting PostgreSQL instance(s)"
+  ansible.builtin.systemd:
+    name: "postgresql-{{ pg_version }}-{{ pg_instance }}"
+    enabled: yes
+    state: started

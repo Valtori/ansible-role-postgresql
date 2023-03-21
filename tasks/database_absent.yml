@@ -1,0 +1,9 @@
+# PostgreSQL
+
+- name: "Creating database(s)"
+  become: yes
+  become_user: postgres
+  community.general.postgresql_db:
+    name: "{{ pg_dbname }}"
+    template: template0
+    state: absent

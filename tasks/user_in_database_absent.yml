@@ -1,0 +1,18 @@
+- name: "Deleting user '{{ pg_dbuser }}' to '{{ pg_dbname }}' in pg_hba.conf"
+  become: yes
+  become_user: postgres
+  community.postgresql.postgresql_pg_hba:
+    dest: "{{ pg_bind_dir }}/{{ pg_version }}/{{ pg_instance }}/pg_hba.conf"
+    contype: hostssl
+    users: "{{ pg_dbuser }}"
+    source: "{{ pg_client_source }}"
+    databases: "{{ pg_dbname }}"
+    method: "{{ pg_password_encryption }}"
+    create: no
+    state: absent
+
+- name: "Deleting user access to '{{ pg_dbname }}'"
+  become_user: postgres
+  community.general.postgresql_query:
+    db: "{{ pg_dbname }}"
+    query: "REVOKE ALL PRIVILEGES ON DATABASE {{ pg_dbname }} FROM {{ pg_dbuser }};"
